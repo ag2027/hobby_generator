@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎲 Random Hobby Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Dark mode styles */    :root {
+      --bg-color: #ffffff;
+      --text-color: #000000;
+      --card-bg: #ffffff;
+      --card-shadow: rgba(0, 0, 0, 0.1);
+      --button-border: #d1d5db;
+      --button-hover: #e5e7eb;
+      --selected-button: #2563eb;
+      --selected-text: #ffffff;
+      --link-color: #2563eb;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #1a1a1a;
+      --text-color: #ffffff;
+      --card-bg: #2d2d2d;
+      --card-shadow: rgba(0, 0, 0, 0.3);
+      --button-border: #404040;
+      --button-hover: #404040;
+      --selected-button: #3b82f6;
+      --selected-text: #ffffff;
+      --link-color: #60a5fa;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    .theme-toggle {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      padding: 0.5rem;
+      border-radius: 50%;
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+    }
+
+    .filter-button {
+      border: 1px solid var(--button-border);
+      background-color: var(--bg-color);
+      color: var(--text-color);
+    }
+
+    .filter-button:hover {
+      background-color: var(--button-hover);
+    }
+
+    .filter-button.selected {
+      background-color: var(--selected-button);
+      color: var(--selected-text);
+    }
+
+    .result-card {
+      background-color: var(--card-bg);
+    }
+
+    .saved-hobby-card {
+      background-color: var(--card-bg);
+    }
+
+    .card-enter {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+    }
+
+    .card-enter-active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .bookmark-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      font-size: 1.5rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0.25rem;
+    }
+
+    #savedHobbies {
+      display: none;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+
+    #savedHobbies.show {
+      display: block;
+      max-height: 1000px;
+    }
+
+    .challenge-card {
+      background-color: var(--card-bg);
+      border: 2px solid #4f46e5;
+      animation: pulse 2s infinite;
+    }
+
+    .challenge-badge {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .streak-counter {
+      font-size: 0.9rem;
+      color: var(--text-color);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .streak-flame {
+      color: #f59e0b;
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4);
+      }
+      70% {
+        box-shadow: 0 0 0 6px rgba(79, 70, 229, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen p-8 flex justify-center">
+  <button class="theme-toggle" id="themeToggle">🌙</button>
+  <div class="max-w-xl w-full p-6 shadow-lg rounded-xl" style="background-color: var(--card-bg);">
+    <h1 class="text-3xl font-bold mb-6 text-center">🎲 Random Hobby Generator</h1>
+
+    <div id="dailyChallenge" class="mb-6 challenge-card p-4 rounded-lg"></div>
+
+    <div id="filters" class="space-y-4 mb-6"></div>
+
+    <div class="flex justify-center gap-4 mb-4">
+      <button id="generateBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition">
+        Generate Hobby
+      </button>
+      <button id="toggleSavedBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
+        View Saved Hobbies
+      </button>
+    </div>
+
+    <div id="savedHobbies" class="saved-hobbies mb-4">
+      <h2 class="text-xl font-semibold mb-3">📚 Saved Hobbies</h2>
+      <div id="savedHobbiesContainer" class="space-y-4"></div>
+    </div>
+
+    <div id="resultContainer" class="text-center"></div>
+  </div>
+
+  <script>
+    
+const hobbies = [
+{
+    name: 'Origami',
+    category: 'Creative',
+    description: 'The Japanese art of paper folding, which transforms a flat square sheet of paper into a finished sculpture through folding and sculpting techniques.',
+    emoji: '🗺️',
+    beginnerTips: 'Start with simple models and use origami paper for best results. Watch video tutorials to understand the folds.',
+    suppliesNeeded: 'Origami paper, a flat surface.',
+    resources: [
+      { title: 'Origami.me', url: 'https://origami.me/' },
+      { title: 'Origami Instructions - YouTube', url: 'https://www.youtube.com/playlist?list=PLD72958A55E6A3A3A' }
+    ]
+  },
+  {
+    name: 'Chess',
+    category: 'Skill-Based',
+    description: 'A strategic board game that has been played for centuries, where two players move their pieces with the objective to checkmate the opponent\'s king.',
+    emoji: '♟️',
+    beginnerTips: 'Learn how each piece moves, understand basic checkmates, and play regularly. Analyze your games to improve.',
+    suppliesNeeded: 'Chessboard and pieces (physical or digital).',
+    resources: [
+      { title: 'Chess.com', url: 'https://www.chess.com/learn-how-to-play-chess' },
+      { title: 'Lichess.org', url: 'https://lichess.org/learn#/' }
+    ]
+  },
+  {
+    name: 'Rock Climbing',
+    category: 'Physical',
+    description: 'An activity in which participants climb up, down, or across natural rock formations or artificial rock walls, with the aim to reach the summit or a specific point.',
+    emoji: '🧗',
+    beginnerTips: 'Start at an indoor climbing gym to learn the basics and safety. Focus on footwork and balance.',
+    suppliesNeeded: 'Climbing shoes, chalk, harness (if top-roping), access to a climbing wall.',
+    resources: [
+      { title: 'REI Climbing Basics', url: 'https://www.rei.com/learn/expert-advice/rock-climbing-basics.html' },
+      { title: 'How to Start Climbing - YouTube', url: 'https://www.youtube.com/watch?v=2U6eSTLh7MI' }
+    ]
+  },
+  {
+    name: 'Creative Writing',
+    category: 'Creative',
+    description: 'The art of expressing ideas, thoughts, and emotions through written words, often in the form of stories, poems, or essays.',
+    emoji: '✍️',
+    beginnerTips: 'Write regularly, read widely, and don’t worry about perfection in your first draft.',
+    suppliesNeeded: 'Notebook or computer.',
+    resources: [
+      { title: 'NaNoWriMo Young Writers Program', url: 'https://ywp.nanowrimo.org/' },
+      { title: 'Creative Writing 101 - Reedsy', url: 'https://blog.reedsy.com/creative-writing-101/' }
+    ]
+  },
+  {
+    name: 'Calligraphy',
+    category: 'Creative',
+    description: 'A visual art form that involves writing, wherein the artist creates decorative letters and symbols, often using special pens or brushes.',
+    emoji: '🖋️',
+    beginnerTips: 'Practice basic strokes and alphabets before moving to complex designs. Use guide sheets.',
+    suppliesNeeded: 'Calligraphy pen or brush, ink, paper.',
+    resources: [
+      { title: 'The Postman’s Knock', url: 'https://thepostmansknock.com/' },
+      { title: 'Calligraphy for Beginners - YouTube', url: 'https://www.youtube.com/watch?v=2pWVEJOo2r4' }
+    ]
+  },
+  {
+    name: 'Geocaching',
+    category: 'Physical',
+    description: 'An outdoor recreational activity, in which participants use a GPS receiver or mobile device to hide and seek containers, called "geocaches" or "caches", at specific locations marked by coordinates.',
+    emoji: '🧭',
+    beginnerTips: 'Download a geocaching app, start with easy caches, and bring a pen to sign logs.',
+    suppliesNeeded: 'Smartphone with GPS, pen, small trinkets for trading.',
+    resources: [
+      { title: 'Geocaching.com', url: 'https://www.geocaching.com/play' },
+      { title: 'Beginner’s Guide to Geocaching', url: 'https://www.geocaching.com/guide/' }
+    ]
+  },
+  {
+    name: 'Birdwatching',
+    category: 'Wellness',
+    description: 'The observation of birds in their natural habitat as a form of recreation, study, and citizen science, often with the aid of binoculars and field guides.',
+    emoji: '🐦',
+    beginnerTips: 'Start in your backyard or a local park. Early mornings are best. Bring a notebook to record sightings.',
+    suppliesNeeded: 'Binoculars, bird guidebook or app, notebook.',
+    resources: [
+      { title: 'Audubon Bird Guide', url: 'https://www.audubon.org/app' },
+      { title: 'Birdwatching for Beginners - YouTube', url: 'https://www.youtube.com/watch?v=2g7bG6qgQbA' }
+    ]
+  },
+  {
+    name: 'Cooking',
+    category: 'Skill-Based',
+    description: 'The art and science of preparing food for consumption, encompassing a wide range of techniques, tools, and ingredients to create delicious and nutritious meals.',
+    emoji: '🍳',
+    beginnerTips: 'Start with simple recipes and gradually try new techniques. Taste as you go and don’t be afraid to experiment.',
+    suppliesNeeded: 'Basic kitchen tools, ingredients, recipes.',
+    resources: [
+      { title: 'Allrecipes', url: 'https://www.allrecipes.com/' },
+      { title: 'Basics with Babish - YouTube', url: 'https://www.youtube.com/playlist?list=PLopY4n17t1xQG1wQp6r5y2w1lQp1U5F2F' }
+    ]
+  },
+  {
+    name: 'Podcasting',
+    category: 'Digital',
+    description: 'The production and distribution of audio episodes, typically focused on a particular topic or theme, which listeners can stream or download.',
+    emoji: '🎙️',
+    beginnerTips: 'Plan your episodes, use a decent microphone, and edit for clarity. Consistency is key.',
+    suppliesNeeded: 'Microphone, headphones, recording/editing software.',
+    resources: [
+      { title: 'How to Start a Podcast', url: 'https://www.buzzsprout.com/how-to-make-a-podcast' },
+      { title: 'Podcasting for Beginners - YouTube', url: 'https://www.youtube.com/watch?v=F8K8l8Ck1Uo' }
+    ]
+  },
+  {
+    name: '3D Modeling',
+    category: 'Digital',
+    description: 'The process of creating a three-dimensional representation of a physical object or scene using specialized software, which can be used in various applications like games, movies, and simulations.',
+    emoji: '📐',
+    beginnerTips: 'Start with free software like Blender. Follow beginner tutorials and practice basic shapes.',
+    suppliesNeeded: 'Computer, 3D modeling software (e.g., Blender).',
+    resources: [
+      { title: 'Blender Beginner Tutorial', url: 'https://www.blender.org/support/tutorials/' },
+      { title: 'Blender Guru - YouTube', url: 'https://www.youtube.com/user/AndrewPPrice' }
+    ]
+  },
+  {
+    name: 'Amateur Astronomy',
+    category: 'Skill-Based',
+    description: 'The observation and study of celestial objects, space, and the universe as a whole, often with the use of telescopes and other equipment.',
+    emoji: '🔭',
+    beginnerTips: 'Start by learning constellations. Use a star map or app. Join local astronomy clubs for guidance.',
+    suppliesNeeded: 'Star map/app, binoculars or telescope (optional).',
+    resources: [
+      { title: 'Sky & Telescope', url: 'https://skyandtelescope.org/astronomy-resources/' },
+      { title: 'Astronomy for Beginners - YouTube', url: 'https://www.youtube.com/watch?v=4nqH7yG9C3w' }
+    ]
+  },
+  {
+    name: 'Kite Making',
+    category: 'Creative',
+    description: 'The craft of designing and constructing kites, which are flown for recreation, sport, or artistic expression, using a variety of materials and techniques.',
+    emoji: '🪁',
+    beginnerTips: 'Start with simple designs and lightweight materials. Test your kite on a breezy day in an open area.',
+    suppliesNeeded: 'Paper or fabric, sticks, string, glue or tape.',
+    resources: [
+      { title: 'How to Make a Simple Kite', url: 'https://www.instructables.com/How-to-Make-a-Kite/' },
+      { title: 'Kite Making for Kids - YouTube', url: 'https://www.youtube.com/watch?v=8pU6gG5rKjA' }
+    ]
+  },
+  {
+    name: 'Soap Carving',
+    category: 'Creative',
+    description: 'The art of sculpting and shaping soap into decorative or functional items, using various carving tools and techniques.',
+    emoji: '🧼',
+    beginnerTips: 'Use soft soap and simple tools like plastic knives. Start with basic shapes before trying detailed designs.',
+    suppliesNeeded: 'Bar soap, plastic knife or carving tools, towel.',
+    resources: [
+      { title: 'Soap Carving for Beginners', url: 'https://www.thesprucecrafts.com/soap-carving-for-beginners-1253072' },
+      { title: 'Soap Carving Tutorial - YouTube', url: 'https://www.youtube.com/watch?v=6QKjv0vK4hE' }
+    ]},
+    {
+    name: 'Slacklining',
+    category: 'Physical',
+    description: 'The activity of walking or balancing along a suspended length of flat webbing, which is tensioned between two anchor points.',
+    emoji: '🤸',
+    beginnerTips: 'Set the line low to the ground and use a spotter. Focus on a fixed point ahead to help balance.',
+    suppliesNeeded: 'Slackline kit, two sturdy anchor points (like trees).',
+    resources: [
+      { title: 'Slacklining 101', url: 'https://www.slackline.com/pages/slacklining-101' },
+      { title: 'How to Slackline - YouTube', url: 'https://www.youtube.com/watch?v=2t0Rsv6YwJg' }
+    ]
+  },
+  {
+    name: 'Language Learning',
+    category: 'Skill-Based',
+    description: 'The process of acquiring the ability to understand, speak, read, and write in a new language through study and practice.',
+    emoji: '🈵',
+    beginnerTips: 'Practice daily with an app, then find conversation partners for real-world practice.',
+    suppliesNeeded: 'Language app subscription or textbook, notebook.',
+    resources: [
+      { title: 'Duolingo', url: 'https://www.duolingo.com/' },
+      { title: 'Language Learning Tips - YouTube', url: 'https://www.youtube.com/watch?v=8pN6pP0bU2w' }
+    ]
+  },
+  {
+    name: 'Photography',
+    category: 'Creative',
+    description: 'The art and practice of capturing and processing images using a camera to create visually appealing photographs.',
+    emoji: '📸',
+    beginnerTips: 'Learn basic composition rules (rule of thirds), experiment with light and perspective.',
+    suppliesNeeded: 'Camera or smartphone, optional tripod.',
+    resources: [
+      { title: 'Photography Basics', url: 'https://www.digitalphotomentor.com/photography-tips-for-beginners/' },
+      { title: 'Photography Fundamentals - YouTube', url: 'https://www.youtube.com/watch?v=7bKFaF1fF0c' }
+    ]
+  },
+  {
+    name: 'Yoga',
+    category: 'Wellness',
+    description: 'A physical, mental, and spiritual practice involving breath control and body postures to enhance health and relaxation.',
+    emoji: '🧘',
+    beginnerTips: 'Start with short beginner videos and focus on breath, not flexibility.',
+    suppliesNeeded: 'Yoga mat, comfortable clothing.',
+    resources: [
+      { title: 'Yoga with Adriene', url: 'https://www.youtube.com/user/yogawithadriene' },
+      { title: 'Yoga Basics', url: 'https://www.yogabasics.com/' }
+    ]
+  },
+  {
+    name: 'Juggling',
+    category: 'Physical',
+    description: 'The skill of keeping objects in motion in the air using the hands, often as performance art or for coordination practice.',
+    emoji: '🤹',
+    beginnerTips: 'Start with scarves or beanbags. Master two, then move to three objects.',
+    suppliesNeeded: 'Juggling balls or beanbags.',
+    resources: [
+      { title: 'Learn to Juggle - YouTube', url: 'https://www.youtube.com/watch?v=7RDfNn7crqE' },
+      { title: 'Juggling Tips', url: 'https://www.juggling.org/help/learn/' }
+    ]
+  },
+  {
+    name: 'Soap Making',
+    category: 'Creative',
+    description: 'The craft of creating handmade soap using various methods and ingredients, often for personal use or gifts.',
+    emoji: '🧴',
+    beginnerTips: 'Use melt-and-pour soap bases at first to master safety and molds.',
+    suppliesNeeded: 'Soap base, molds, fragrances, safety gloves.',
+    resources: [
+      { title: 'Soap Queen', url: 'https://www.soapqueen.com/' },
+      { title: 'Soap Making Basics - YouTube', url: 'https://www.youtube.com/watch?v=8F8nM5CkY9w' }
+    ]
+  },
+  {
+    name: 'Urban Exploration',
+    category: 'Social',
+    description: 'Exploring and documenting man-made structures, often abandoned, to discover hidden histories.',
+    emoji: '🏚️',
+    beginnerTips: 'Always research legal access, go with a friend, bring a flashlight and mask.',
+    suppliesNeeded: 'Flashlight, sturdy shoes, camera.',
+    resources: [
+      { title: 'UER (Urban Exploration Resource)', url: 'https://www.uer.ca/' },
+      { title: 'Urban Exploration Tips - YouTube', url: 'https://www.youtube.com/watch?v=6QKjv0vK4hE' }
+    ]
+  },
+  {
+    name: 'Embroidery',
+    category: 'Creative',
+    description: 'Decorating fabric with needle and thread to create patterns or images using various stitches.',
+    emoji: '🧵',
+    beginnerTips: 'Start with simple stitch patterns on a small hoop. Practice tension control.',
+    suppliesNeeded: 'Embroidery hoop, needles, embroidery floss, fabric.',
+    resources: [
+      { title: 'DMC Embroidery Guides', url: 'https://www.dmc.com/us/p-embroidery.html' },
+      { title: 'Embroidery Tutorials - YouTube', url: 'https://www.youtube.com/watch?v=MrYXBJt8zq8' }
+    ]
+  },
+  {
+    name: 'Gardening',
+    category: 'Wellness',
+    description: 'Cultivating plants, flowers, herbs, or vegetables for aesthetic, culinary, or therapeutic purposes.',
+    emoji: '🌿',
+    beginnerTips: 'Choose easy-care plants, learn about local climate, and water consistently.',
+    suppliesNeeded: 'Pots or garden bed, soil, seeds or seedlings, watering can.',
+    resources: [
+      { title: 'Beginner Gardening Guide', url: 'https://www.gardeners.com/how-to/beginners-guide-to-gardening/5062.html' },
+      { title: 'Gardening for Beginners - YouTube', url: 'https://www.youtube.com/watch?v=7bKFaF1fF0c' }
+    ]
+  }
+,  {
+    name: 'Board Games',
+    category: 'Social',
+    description: 'Tabletop games that involve strategy, luck, and player interaction.',
+    emoji: '🎲',
+    beginnerTips: 'Read the rulebook first, then watch a playthrough video. Start with games designed for beginners.',
+    suppliesNeeded: 'A board game and 1–5 players.',
+    resources: [
+      { title: 'BoardGameGeek', url: 'https://boardgamegeek.com/' },
+      { title: 'How to Play Board Games - YouTube', url: 'https://www.youtube.com/user/boardgamegeektv' }
+    ]
+  },
+  {
+    name: 'Coding',
+    category: 'Digital',
+    description: 'Designing and writing computer programs in languages like JavaScript, Python, or Java.',
+    emoji: '💻',
+    beginnerTips: 'Choose one language, follow an online tutorial series, and build small projects.',
+    suppliesNeeded: 'Computer, code editor (e.g., VSCode), internet.',
+    resources: [
+      { title: 'freeCodeCamp', url: 'https://www.freecodecamp.org/' },
+      { title: 'Codecademy', url: 'https://www.codecademy.com/' }
+    ]
+  },
+  {
+    name: 'Meditation',
+    category: 'Wellness',
+    description: 'Practicing mindfulness or focused attention to calm the mind and reduce stress.',
+    emoji: '🧘‍♂️',
+    beginnerTips: 'Start with 5 minutes of guided sessions, focus on breathing, sit comfortably.',
+    suppliesNeeded: 'Quiet space, meditation app (optional).',
+    resources: [
+      { title: 'Headspace', url: 'https://www.headspace.com/meditation/meditation-for-beginners' },
+      { title: 'Mindful.org', url: 'https://www.mindful.org/how-to-meditate/' }
+    ]
+  },
+  {
+    name: 'Blogging',
+    category: 'Digital',
+    description: 'Writing and publishing articles, stories, or tutorials on a personal website or platform.',
+    emoji: '📝',
+    beginnerTips: 'Pick a platform (WordPress, Medium), write regularly, and focus on a niche.',
+    suppliesNeeded: 'Computer, blogging platform/account.',
+    resources: [
+      { title: 'ProBlogger', url: 'https://problogger.com/' },
+      { title: 'How to Start a Blog - YouTube', url: 'https://www.youtube.com/watch?v=0U2vOACqoeA' }
+    ]
+  },
+  {
+    name: 'Fishing',
+    category: 'Wellness',
+    description: 'Catching fish using rods, bait, or fly-fishing gear in freshwater or saltwater.',
+    emoji: '🎣',
+    beginnerTips: 'Learn basic knots, start with live bait, fish during dawn or dusk for best results.',
+    suppliesNeeded: 'Fishing rod, bait/hooks, license (if required).',
+    resources: [
+      { title: 'BassResource Fishing Basics', url: 'https://www.bassresource.com/fish/learn-fish/' },
+      { title: 'Fishing for Beginners - YouTube', url: 'https://www.youtube.com/watch?v=jGJy9ppZSR0' }
+    ]
+  },
+  {
+    name: 'Scrapbooking',
+    category: 'Creative',
+    description: 'Compiling photos and memorabilia into decorative albums with creative layouts.',
+    emoji: '📔',
+    beginnerTips: 'Start with a simple theme, use photo-safe adhesives, plan your layout on scratch paper.',
+    suppliesNeeded: 'Album, scissors, adhesives, decorative paper/stickers.',
+    resources: [
+      { title: 'Scrapbook.com', url: 'https://www.scrapbook.com/' },
+      { title: 'Scrapbooking Basics - YouTube', url: 'https://www.youtube.com/watch?v=Fz3fZldUY-g' }
+    ]
+  },
+  {
+    name: 'Volunteering',
+    category: 'Social',
+    description: 'Offering your time for community service or nonprofit organizations.',
+    emoji: '🤝',
+    beginnerTips: 'Start with local shelters or food banks, commit to a regular schedule.',
+    suppliesNeeded: 'Comfortable clothing, positive attitude.',
+    resources: [
+      { title: 'VolunteerMatch', url: 'https://www.volunteermatch.org/' },
+      { title: 'How to Volunteer - YouTube', url: 'https://www.youtube.com/watch?v=5Qh7WtBMWVI' }
+    ]
+  },
+  {
+    name: 'Magic Tricks',
+    category: 'Skill-Based',
+    description: 'Performing sleight of hand and illusions to entertain an audience.',
+    emoji: '🪄',
+    beginnerTips: 'Learn simple card and coin tricks first, practice in front of a mirror.',
+    suppliesNeeded: 'Deck of cards, coins, magic trick props.',
+    resources: [
+      { title: 'Ellusionist Tutorials', url: 'https://www.ellusionist.com/blogs/tutorials' },
+      { title: 'Beginner Magic Tricks - YouTube', url: 'https://www.youtube.com/watch?v=ZLwHMsfJN40' }
+    ]
+  },
+  {
+    name: 'Tinkering',
+    category: 'Skill-Based',
+    description: 'Experimenting with gadgets and electronics to build or fix things.',
+    emoji: '🔧',
+    beginnerTips: 'Start with basic DIY kits, learn soldering safety, follow instructions closely.',
+    suppliesNeeded: 'Electronics kit, basic tools, workspace.',
+    resources: [
+      { title: 'Instructables Electronics', url: 'https://www.instructables.com/electronics/' },
+      { title: 'Electronics for Beginners - YouTube', url: 'https://www.youtube.com/watch?v=J7hbKKQmT7w' }
+    ]
+  },
+  {
+    name: 'Martial Arts',
+    category: 'Physical',
+    description: 'Practicing combat and self-defense disciplines like karate, judo, or taekwondo.',
+    emoji: '🥋',
+    beginnerTips: 'Find a certified instructor, start with basic stances and forms, warm up properly.',
+    suppliesNeeded: 'Gi/uniform, protective gear (optional).',
+    resources: [
+      { title: 'Black Belt Wiki', url: 'https://blackbeltwiki.com/' },
+      { title: 'Martial Arts Beginner Tips - YouTube', url: 'https://www.youtube.com/watch?v=d-rtNzG9pW4' }
+    ]
+  },
+  {
+    name: 'Crocheting',
+    category: 'Creative',
+    description: 'Using a hooked needle to create fabric from yarn via loops and stitches.',
+    emoji: '🧶',
+    beginnerTips: 'Learn basic stitches (chain, single crochet), use larger hooks for practice.',
+    suppliesNeeded: 'Yarn, crochet hook, pattern (optional).',
+    resources: [
+      { title: 'AllFreeCrochet', url: 'https://www.allfreecrochet.com/' },
+      { title: 'Crochet for Beginners - YouTube', url: 'https://www.youtube.com/watch?v=HGBXpqCgaxw' }
+    ]
+  },
+  {
+    name: 'Lego Building',
+    category: 'Creative',
+    description: 'Constructing models and structures using interlocking plastic bricks.',
+    emoji: '🧱',
+    beginnerTips: 'Follow instructions first, then freebuild to explore creativity.',
+    suppliesNeeded: 'Lego sets or bricks.',
+    resources: [
+      { title: 'Lego Ideas', url: 'https://ideas.lego.com/' },
+      { title: 'Lego Building Tips - YouTube', url: 'https://www.youtube.com/watch?v=KAhhkqqep9U' }
+    ]
+  },
+  {
+    name: 'Baking',
+    category: 'Skill-Based',
+    description: 'Using precise measurements to create breads, pastries, and desserts.',
+    emoji: '🥐',
+    beginnerTips: 'Follow recipes exactly, invest in a kitchen scale, preheat your oven.',
+    suppliesNeeded: 'Oven, bakeware, ingredients, scale.',
+    resources: [
+      { title: 'King Arthur Baking', url: 'https://www.kingarthurbaking.com/' },
+      { title: 'Baking Basics - YouTube', url: 'https://www.youtube.com/watch?v=TYGGaFHNcLE' }
+    ]
+  },
+  {
+    name: 'Stargazing',
+    category: 'Wellness',
+    description: 'Observing stars, planets, and celestial events, often with a telescope or binoculars.',
+    emoji: '🌌',
+    beginnerTips: 'Use a starmap app, find a dark location away from city lights.',
+    suppliesNeeded: 'Star app or map, binoculars or telescope (optional).',
+    resources: [
+      { title: 'Stellarium Web', url: 'https://stellarium-web.org/' },
+      { title: 'Stargazing Tutorial - YouTube', url: 'https://www.youtube.com/watch?v=HXt-cKfXGSM' }
+    ]
+  },
+  {
+    name: 'Parkour',
+    category: 'Physical',
+    description: 'Moving efficiently through environment obstacles via running, jumping, and climbing.',
+    emoji: '🏃',
+    beginnerTips: 'Start with basic vaults and rolls on soft surfaces, focus on form.',
+    suppliesNeeded: 'Comfortable athletic wear, training area with mats.',
+    resources: [
+      { title: 'ParkourEDU', url: 'https://www.parkoured.com/' },
+      { title: 'Parkour for Beginners - YouTube', url: 'https://www.youtube.com/watch?v=YM4-kGdU7pg' }
+    ]
+  },
+  {
+    name: 'Animation',
+    category: 'Digital',
+    description: 'Creating moving images by sequencing frames in software like Blender or After Effects.',
+    emoji: '🎞️',
+    beginnerTips: 'Learn keyframing basics, start with simple shape animations.',
+    suppliesNeeded: 'Computer, animation software.',
+    resources: [
+      { title: 'Animation Mentor', url: 'https://www.animationmentor.com/' },
+      { title: 'Blender Animation Tutorial - YouTube', url: 'https://www.youtube.com/watch?v=Psj4rYy5S2Q' }
+    ]
+  },
+  {
+    name: 'Mixology',
+    category: 'Skill-Based',
+    description: 'Crafting cocktails by measuring and mixing spirits, liqueurs, and mixers.',
+    emoji: '🍸',
+    beginnerTips: 'Master a few classic recipes, invest in basic bar tools, taste before serving.',
+    suppliesNeeded: 'Shaker, jigger, strainer, spirits, mixers.',
+    resources: [
+      { title: 'Liquor.com Recipes', url: 'https://www.liquor.com/cocktails-4779343/' },
+      { title: 'Mixology Basics - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Journaling',
+    category: 'Wellness',
+    description: 'Recording thoughts, goals, and reflections in writing to foster mindfulness.',
+    emoji: '📖',
+    beginnerTips: 'Try bullet journaling or prompts, write daily for 5 minutes.',
+    suppliesNeeded: 'Notebook, pen, quiet space.',
+    resources: [
+      { title: 'Bullet Journal', url: 'https://bulletjournal.com/' },
+      { title: 'Journaling Prompts - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Tattoo Art',
+    category: 'Creative',
+    description: 'Designing and creating tattoo artwork, understanding placement and skin as a canvas.',
+    emoji: '🖌️',
+    beginnerTips: 'Sketch designs on paper first. Study anatomy and different tattoo styles.',
+    suppliesNeeded: 'Drawing supplies or digital tablet, reference images.',
+    resources: [
+      { title: 'Tattoodo', url: 'https://www.tattoodo.com/' },
+      { title: 'Tattoo Design Tutorial - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Dancing',
+    category: 'Physical',
+    description: 'Expressing rhythm and emotion through body movements in various styles.',
+    emoji: '💃',
+    beginnerTips: 'Start with simple choreography videos, practice in front of a mirror.',
+    suppliesNeeded: 'Comfortable clothes, open space, music source.',
+    resources: [
+      { title: 'Steezy Studio', url: 'https://www.steezy.co/' },
+      { title: 'Learn Dance Moves - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Playing Music',
+    category: 'Skill-Based',
+    description: 'Learning and performing on a musical instrument, understanding rhythm and melody.',
+    emoji: '🎸',
+    beginnerTips: 'Pick one instrument, learn basic scales and chords, practice daily.',
+    suppliesNeeded: 'Instrument of choice, tuner/metronome.',
+    resources: [
+      { title: 'JustinGuitar', url: 'https://www.justinguitar.com/' },
+      { title: 'Music Lessons - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Park Picnics',
+    category: 'Wellness',
+    description: 'Enjoying a meal outdoors, typically with blankets, baskets, and friends or family.',
+    emoji: '🧺',
+    beginnerTips: 'Pack simple, portable foods. Bring a blanket and check the weather.',
+    suppliesNeeded: 'Picnic blanket, cooler or basket, utensils.',
+    resources: [
+      { title: 'Picnic Ideas', url: 'https://www.countryliving.com/entertaining/g2314/picnic-ideas/' },
+      { title: 'Picnic Tips - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Storytelling',
+    category: 'Creative',
+    description: 'Crafting and sharing narratives orally or in writing to engage an audience.',
+    emoji: '📚',
+    beginnerTips: 'Learn classic story structures (e.g., hero’s journey), practice telling short tales.',
+    suppliesNeeded: 'Notebook or recording device.',
+    resources: [
+      { title: 'The Moth', url: 'https://themoth.org/' },
+      { title: 'Storytelling Tips - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Cosplaying',
+    category: 'Creative',
+    description: 'Creating and wearing costumes to represent characters from media like anime, games, or comics.',
+    emoji: '🧝',
+    beginnerTips: 'Start with simple props or wigs, use thrifted pieces, follow cosplay tutorials.',
+    suppliesNeeded: 'Fabric, crafting tools, reference images.',
+    resources: [
+      { title: 'Cosplay Tutorial Hub', url: 'https://cosplaytutorials.com/' },
+      { title: 'Cosplay Basics - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Roleplaying Games',
+    category: 'Social',
+    description: 'Collaborative storytelling games where players assume character roles guided by rules and a game master.',
+    emoji: '🧙',
+    beginnerTips: 'Read the starter rulebook, watch actual play streams, start with a simple module.',
+    suppliesNeeded: 'Rulebook, dice set, character sheet.',
+    resources: [
+      { title: 'D&D Beyond', url: 'https://www.dndbeyond.com/' },
+      { title: 'Actual Play Streams - YouTube', url: 'https://www.youtube.com/results?search_query=actual+play' }
+    ]
+  },
+  {
+    name: 'Origami Architecture',
+    category: 'Creative',
+    description: 'Advanced origami focused on folding paper into architectural models and structures.',
+    emoji: '🏛️',
+    beginnerTips: 'Master basic origami first, use diagram-heavy books for complex folds.',
+    suppliesNeeded: 'Thin, strong paper (e.g., kami or foil-backed).',
+    resources: [
+      { title: 'ORITETSU Architecture', url: 'https://www.origami-architecture.com/' },
+      { title: 'Origami Architecture Tutorial - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'DIY Electronics',
+    category: 'Skill-Based',
+    description: 'Designing and building electronic circuits and devices from components or kits.',
+    emoji: '🔌',
+    beginnerTips: 'Start with Arduino or Raspberry Pi kits, follow step-by-step guides.',
+    suppliesNeeded: 'Microcontroller kit, breadboard, wires, basic tools.',
+    resources: [
+      { title: 'Adafruit Learning System', url: 'https://learn.adafruit.com/' },
+      { title: 'Raspberry Pi Projects - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Cartooning',
+    category: 'Creative',
+    description: 'Drawing humorous or expressive cartoons, often for comics or animation.',
+    emoji: '🖍️',
+    beginnerTips: 'Learn basic figure proportions, practice gesture drawing daily.',
+    suppliesNeeded: 'Paper, pencils/inks, drawing tablet (optional).',
+    resources: [
+      { title: 'Cartooning Club', url: 'https://www.cartooningclub.com/' },
+      { title: 'Cartoon Art Lessons - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Letterboxing',
+    category: 'Physical',
+    description: 'Outdoor treasure hunt where participants follow clues to find hidden boxes and stamp logbooks.',
+    emoji: '📬',
+    beginnerTips: 'Grab a waterproof logbook, start with easy nearby letterboxes.',
+    suppliesNeeded: 'Logbook or notebook, rubber stamp and ink pad.',
+    resources: [
+      { title: 'Letterboxing North America', url: 'https://www.letterboxing.org/' },
+      { title: 'Letterboxing Basics - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Tatami Puzzle Solving',
+    category: 'Digital',
+    description: 'Solving grid-based or spatial puzzles that require logical placement of shapes or numbers.',
+    emoji: '🧩',
+    beginnerTips: 'Learn rules of each puzzle type (e.g., Sudoku, nonograms) and practice small grids.',
+    suppliesNeeded: 'Pencil and paper or puzzle app.',
+    resources: [
+      { title: 'Puzzle Baron', url: 'https://www.puzzle-barons.com/' },
+      { title: 'Puzzle Solving Tips - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Archery',
+    category: 'Physical',
+    description: 'Using a bow to shoot arrows at a target, requiring precision and control.',
+    emoji: '🏹',
+    beginnerTips: 'Start with a beginner recurve bow under instructor guidance, focus on stance and aim.',
+    suppliesNeeded: 'Bow, arrows, target, armguard.',
+    resources: [
+      { title: 'Archery 360', url: 'https://archery360.com/' },
+      { title: 'Archery Basics - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Lockpicking (Legal)',
+    category: 'Skill-Based',
+    description: 'Understanding lock mechanisms and practicing opening locks without keys for educational purposes.',
+    emoji: '🗝️',
+    beginnerTips: 'Use a lockpicking set with practice locks, learn pin tumbler basics first.',
+    suppliesNeeded: 'Lockpick set, practice lock.',
+    resources: [
+      { title: 'LockPickingLawyer Channel', url: 'https://www.youtube.com/c/LockpickingLawyer' },
+      { title: 'Lockpicking 101', url: 'https://www.lockwiki.com/' }
+    ]
+  },
+  {
+    name: 'Fencing',
+    category: 'Physical',
+    description: 'Sport using swords (foil, epee, or sabre) worn with protective gear, emphasizing speed and strategy.',
+    emoji: '🤺',
+    beginnerTips: 'Take beginner classes at a local club, learn footwork and blade work basics.',
+    suppliesNeeded: 'Fencing mask, weapon, glove, protective jacket.',
+    resources: [
+      { title: 'USA Fencing', url: 'https://www.usafencing.org/' },
+      { title: 'Fencing for Beginners - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Zine Making',
+    category: 'Creative',
+    description: 'Self-publishing small magazines or booklets on niche topics using cut-and-paste or digital layouts.',
+    emoji: '📓',
+    beginnerTips: 'Start with a single folded sheet format, experiment with photocopiers or PDF layouts.',
+    suppliesNeeded: 'Paper, scissors, glue, printing device.',
+    resources: [
+      { title: 'ZineWiki', url: 'http://zinewiki.com/' },
+      { title: 'Zine Making Tutorial - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'DJing',
+    category: 'Digital',
+    description: 'Mixing tracks live or digitally, using turntables or software to create seamless sets.',
+    emoji: '🎧',
+    beginnerTips: 'Learn beatmatching, start with free software like Mixxx or Serato Lite.',
+    suppliesNeeded: 'DJ controller or software, headphones, music library.',
+    resources: [
+      { title: 'DJ TechTools', url: 'https://djtechtools.com/' },
+      { title: 'DJing Basics - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Digital Art',
+    category: 'Digital',
+    description: 'Creating artwork using digital tools such as tablets, styluses, and software like Photoshop or Procreate.',
+    emoji: '🖌️',
+    beginnerTips: 'Learn basic digital brushes and layers, follow digital art speedpaints.',
+    suppliesNeeded: 'Tablet or graphics tablet, digital art software.',
+    resources: [
+      { title: 'Proko Digital Art', url: 'https://www.proko.com/' },
+      { title: 'Digital Art Tutorial - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Leather Crafting',
+    category: 'Creative',
+    description: 'Crafting items from leather by cutting, stitching, and tooling for goods like wallets or belts.',
+    emoji: '👞',
+    beginnerTips: 'Use vegetable-tanned leather for tooling, start with simple projects like keychains.',
+    suppliesNeeded: 'Leather, cutting tools, needles, thread, dye (optional).',
+    resources: [
+      { title: 'Tandy Leather Tutorials', url: 'https://tandyleather.com/' },
+      { title: 'Leather Crafting - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },  {
+    name: 'Candle Making',
+    category: 'Creative',
+    description: 'The craft of making candles from wax, wick, and fragrance oils.',
+    emoji: '🕯️',
+    beginnerTips: 'Melt wax carefully, test wick size, and add fragrance at the right temperature.',
+    suppliesNeeded: 'Wax, wicks, fragrance oils, heat‐safe container.',
+    resources: [
+      { title: 'Candle Making 101', url: 'https://www.candlemakingresource.com/' },
+      { title: 'DIY Candle Tutorial - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Thrifting',
+    category: 'Social',
+    description: 'Shopping for second-hand clothing, furniture, and other goods at thrift stores or flea markets.',
+    emoji: '🛍️',
+    beginnerTips: 'Go early for best finds, check for quality and stains, and be open-minded.',
+    suppliesNeeded: 'Reusable shopping bag, cash or card.',
+    resources: [
+      { title: 'Thrift Store Tips', url: 'https://www.thrifts.com/' },
+      { title: 'Thrifting Haul Tips - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Public Speaking',
+    category: 'Skill-Based',
+    description: 'The art of delivering speeches or presentations clearly and confidently to an audience.',
+    emoji: '🎤',
+    beginnerTips: 'Practice in front of a mirror or friends, record yourself, and start with small groups.',
+    suppliesNeeded: 'Notes or slides, a quiet rehearsal space.',
+    resources: [
+      { title: 'Toastmasters International', url: 'https://www.toastmasters.org/' },
+      { title: 'Public Speaking Tips - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Camping',
+    category: 'Wellness',
+    description: 'Spending one or more nights outdoors, typically in a tent, RV, or under the stars.',
+    emoji: '🏕️',
+    beginnerTips: 'Choose an established campsite, bring extra layers and a reliable tent.',
+    suppliesNeeded: 'Tent, sleeping bag, camping stove, flashlight.',
+    resources: [
+      { title: 'REI Camping Guide', url: 'https://www.rei.com/learn/c/camping' },
+      { title: 'Camping Tips - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Tatami Weaving',
+    category: 'Creative',
+    description: 'Weaving traditional Japanese straw mats (tatami) or similar straw crafts.',
+    emoji: '🧺',
+    beginnerTips: 'Learn basic weaving patterns, practice on small mats before full tatami.',
+    suppliesNeeded: 'Straw or rush, weaving loom or frame.',
+    resources: [
+      { title: 'Tatami Weaving Basics', url: 'https://tatamibliss.com/' },
+      { title: 'Weaving Tutorial - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Meteorology',
+    category: 'Skill-Based',
+    description: 'The study of weather processes and forecasting using data from instruments and models.',
+    emoji: '🌦️',
+    beginnerTips: 'Start by learning weather symbols and how to read forecasts; track daily changes.',
+    suppliesNeeded: 'Weather app or instruments (thermometer, barometer).',
+    resources: [
+      { title: 'Met Office Learning', url: 'https://www.metoffice.gov.uk/weather/learn-about' },
+      { title: 'Weather Forecasting - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Fantasy Sports',
+    category: 'Social',
+    description: 'Forming virtual teams of real players in leagues where performance is based on actual stats.',
+    emoji: '🏈',
+    beginnerTips: 'Understand scoring rules, draft balanced rosters, and stay active with trades.',
+    suppliesNeeded: 'Internet access, league registration.',
+    resources: [
+      { title: 'ESPN Fantasy Guide', url: 'https://www.espn.com/fantasy/' },
+      { title: 'Fantasy Sports Tips - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Puzzle Solving',
+    category: 'Skill-Based',
+    description: 'Working through logical or word puzzles such as Sudoku, crosswords, and brain teasers.',
+    emoji: '🧠',
+    beginnerTips: 'Learn techniques for each puzzle type, start with easy levels, and practice daily.',
+    suppliesNeeded: 'Puzzle book, pencil, or puzzle app.',
+    resources: [
+      { title: 'Puzzle Baron', url: 'https://www.puzzle-barons.com/' },
+      { title: 'Crossword Tips - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Voice Acting',
+    category: 'Creative',
+    description: 'Performing character or narration voices for animations, audiobooks, or commercials.',
+    emoji: '🗣️',
+    beginnerTips: 'Warm up your voice, practice reading scripts with different emotions.',
+    suppliesNeeded: 'Microphone, quiet recording space, scripts.',
+    resources: [
+      { title: 'Edge Studio Training', url: 'https://www.edge-studio.com/' },
+      { title: 'Voice Acting Tips - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Upcycling',
+    category: 'Creative',
+    description: 'Transforming old or discarded materials into new, higher-value products.',
+    emoji: '♻️',
+    beginnerTips: 'Start with simple projects like repainting furniture, and gather secondhand materials.',
+    suppliesNeeded: 'Old items to upcycle, paint, glue, tools.',
+    resources: [
+      { title: 'Instructables Upcycling', url: 'https://www.instructables.com/craft/upcycling/' },
+      { title: 'Upcycling DIY - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Bonsai Growing',
+    category: 'Wellness',
+    description: 'Cultivating miniature trees in containers, combining horticulture and artistry.',
+    emoji: '🌳',
+    beginnerTips: 'Choose hardy species, learn pruning and wiring techniques, and water consistently.',
+    suppliesNeeded: 'Bonsai pot, soil mix, pruning tools.',
+    resources: [
+      { title: 'Bonsai Empire', url: 'https://www.bonsaiempire.com/' },
+      { title: 'Bonsai for Beginners - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Ice Skating',
+    category: 'Physical',
+    description: 'Gliding on ice using ice skates, either recreationally or competitively.',
+    emoji: '⛸️',
+    beginnerTips: 'Wear supportive boots, start near the rink edge, bend knees for balance.',
+    suppliesNeeded: 'Ice skates, warm clothing.',
+    resources: [
+      { title: 'Learn to Skate USA', url: 'https://www.learn2skateusa.com/' },
+      { title: 'Ice Skating Tips - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Tattoo Design',
+    category: 'Creative',
+    description: 'Sketching original tattoo art while considering skin placement and longevity.',
+    emoji: '🎨',
+    beginnerTips: 'Research styles, practice line work on paper, and use stencil transfers.',
+    suppliesNeeded: 'Drawing tools, stencil paper (for pros).',
+    resources: [
+      { title: 'Tattoo.com Design', url: 'https://www.tattoo.com/designs' },
+      { title: 'Tattoo Drawing Tips - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Foraging',
+    category: 'Physical',
+    description: 'Gathering edible wild plants, mushrooms, or berries in natural habitats.',
+    emoji: '🌱',
+    beginnerTips: 'Learn local species, use a guidebook, never eat unidentified plants.',
+    suppliesNeeded: 'Basket, guidebook, gloves.',
+    resources: [
+      { title: 'WildEdibles', url: 'https://www.wildedibles.com/' },
+      { title: 'Foraging 101 - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Stop Motion',
+    category: 'Digital',
+    description: 'Animating objects frame by frame to create the illusion of movement.',
+    emoji: '📽️',
+    beginnerTips: 'Use consistent lighting, plan your storyboard, and use a tripod.',
+    suppliesNeeded: 'Camera or phone, stop-motion software/app.',
+    resources: [
+      { title: 'Stop Motion Handbook', url: 'https://www.stopmotionhandbook.com/' },
+      { title: 'Stop Motion Tips - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Beekeeping',
+    category: 'Skill-Based',
+    description: 'Raising and maintaining honeybee colonies in hives for honey and pollination.',
+    emoji: '🐝',
+    beginnerTips: 'Start with a nuc or package bees, learn protective gear usage, and local regulations.',
+    suppliesNeeded: 'Hive boxes, protective suit, smoker, extractor (optional).',
+    resources: [
+      { title: 'Beekeeping 101', url: 'https://www.beeculture.com/' },
+      { title: 'Beekeeping Basics - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Home Brewing',
+    category: 'Skill-Based',
+    description: 'Brewing beer, cider, or kombucha at home using fermentation techniques.',
+    emoji: '🍺',
+    beginnerTips: 'Start with a simple extract kit, sanitize thoroughly, monitor fermentation temps.',
+    suppliesNeeded: 'Brew kit, fermenter, bottles, sanitizer.',
+    resources: [
+      { title: 'Northern Brewer Guide', url: 'https://www.northernbrewer.com/pages/homebrew-recipes' },
+      { title: 'Homebrew Basics - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Fashion Design',
+    category: 'Creative',
+    description: 'Designing clothing and accessories by sketching, draping, and patternmaking.',
+    emoji: '👗',
+    beginnerTips: 'Learn basic sewing and pattern drafting, start with simple garments.',
+    suppliesNeeded: 'Fabric, sewing machine, pattern paper.',
+    resources: [
+      { title: 'BurdaStyle Tutorials', url: 'https://www.burdastyle.com/' },
+      { title: 'Fashion Design Tips - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Historical Reenactment',
+    category: 'Social',
+    description: 'Recreating and performing historical events or daily life from specific eras.',
+    emoji: '🏰',
+    beginnerTips: 'Research authenticity, start with local groups, and invest in period-appropriate gear.',
+    suppliesNeeded: 'Costume, props, group membership.',
+    resources: [
+      { title: 'National Association of Reenactors', url: 'https://www.nare.org/' },
+      { title: 'Reenactment Tips - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Paper Quilling',
+    category: 'Creative',
+    description: 'Rolling and shaping strips of paper to form decorative designs and artwork.',
+    emoji: '🌀',
+    beginnerTips: 'Use a slotted quilling tool, start with basic shapes, and glue sparingly.',
+    suppliesNeeded: 'Paper strips, quilling tool, glue.',
+    resources: [
+      { title: 'Quilling Guild', url: 'https://www.quillingguild.org/' },
+      { title: 'Paper Quilling for Beginners - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  },
+  {
+    name: 'Speedcubing',
+    category: 'Skill-Based',
+    description: 'Solving twisty puzzles like the Rubik’s Cube as fast as possible.',
+    emoji: '🧊',
+    beginnerTips: 'Learn a beginner method, then progress to CFOP. Practice finger tricks and lookahead.',
+    suppliesNeeded: 'Speedcube, lubricant, timer app.',
+    resources: [
+      { title: 'SpeedSolving Wiki', url: 'https://www.speedsolving.com/wiki/' },
+      { title: 'Speedcubing Tutorials - YouTube', url: 'https://www.youtube.com/watch?v=QpQpQpQpQpQ' }
+    ]
+  }
+];
+
+
+    const tagsByFilter = {
+      mood: {
+        Calm: 'calm',
+        Energetic: 'energetic',
+        Adventurous: 'adventurous',
+        Social: 'social',
+      },
+      time: {
+        '<10 min': 'short',
+        '30 min': 'medium',
+        'weekend-long': 'long',
+      },
+      budget: {
+        Free: 'free',
+        Cheap: 'cheap',
+        Premium: 'premium',
+      },
+      location: {
+        'At home': 'at home',
+        Outdoors: 'outdoors',
+        Traveling: 'traveling',
+      },
+    };
+
+    const filters = { mood: '', time: '', budget: '', location: '' };
+
+    const filtersDiv = document.getElementById('filters');
+    const resultDiv = document.getElementById('resultContainer');
+    const generateBtn = document.getElementById('generateBtn');
+
+    // Render filter buttons
+    Object.entries(tagsByFilter).forEach(([category, values]) => {
+      const container = document.createElement('div');
+      container.className = 'flex flex-wrap gap-2 mb-2';
+
+      const label = document.createElement('div');
+      label.className = 'font-semibold w-full capitalize';
+      label.textContent = category + ':';
+      container.appendChild(label);
+
+      Object.keys(values).forEach(value => {
+        const button = document.createElement('button');
+        button.className = 'filter-button rounded px-3 py-1 transition';
+        button.textContent = value;
+        button.dataset.category = category;
+        button.dataset.value = value;
+
+        button.addEventListener('click', () => {
+          const current = filters[category];
+          filters[category] = current === value ? '' : value;
+
+          // Update button styles
+          [...container.querySelectorAll('button')].forEach(btn => {
+            btn.classList.remove('bg-blue-600', 'text-white');
+          });
+          if (filters[category]) {
+            button.classList.add('bg-blue-600', 'text-white');
+          }
+        });
+
+        container.appendChild(button);
+      });
+
+      filtersDiv.appendChild(container);
+    });
+
+    generateBtn.addEventListener('click', () => {
+      let filtered = hobbies.filter(hobby => {
+        return Object.entries(filters).every(([key, value]) => {
+          // Ensure hobby.tags exists and is an array before calling includes
+          return value === '' || (hobby.tags && hobby.tags.includes(tagsByFilter[key][value]));
+        });
+      });
+
+      if (filtered.length === 0) {
+        filtered = hobbies; // Fallback to all hobbies if no filter match
+      }
+
+      const hobby = filtered[Math.floor(Math.random() * filtered.length)];
+      showResult(hobby); // Pass the whole hobby object
+    });
+
+    // Saved hobbies functionality
+    const savedHobbiesKey = 'savedHobbies';
+    let savedHobbies = JSON.parse(localStorage.getItem(savedHobbiesKey) || '[]');
+
+    function saveHobby(hobby) {
+      if (!savedHobbies.some(h => h.name === hobby.name)) {
+        savedHobbies.push(hobby);
+        localStorage.setItem(savedHobbiesKey, JSON.stringify(savedHobbies));
+      }
+    }
+
+    function unsaveHobby(hobby) {
+      savedHobbies = savedHobbies.filter(h => h.name !== hobby.name);
+      localStorage.setItem(savedHobbiesKey, JSON.stringify(savedHobbies));
+    }
+
+    function isHobbySaved(hobby) {
+      return savedHobbies.some(h => h.name === hobby.name);
+    }
+
+    function showResult(hobby) {
+      resultDiv.innerHTML = '';
+
+      const card = document.createElement('div');
+      card.className = 'p-6 rounded-lg shadow text-left card-enter relative result-card';
+
+      // Add bookmark button
+      const bookmarkBtn = document.createElement('button');
+      bookmarkBtn.className = 'bookmark-btn';
+      bookmarkBtn.innerHTML = isHobbySaved(hobby) ? '⭐' : '☆';
+      bookmarkBtn.onclick = () => {
+        if (isHobbySaved(hobby)) {
+          unsaveHobby(hobby);
+          bookmarkBtn.innerHTML = '☆';
+        } else {
+          saveHobby(hobby);
+          bookmarkBtn.innerHTML = '⭐';
+        }
+        updateSavedHobbiesView();
+      };
+      card.appendChild(bookmarkBtn);
+
+      // Hobby Name
+      const nameEl = document.createElement('h2');
+      nameEl.className = 'text-2xl font-bold mb-3 text-center';
+      nameEl.textContent = `${hobby.emoji ? hobby.emoji + ' ' : ''}${hobby.name}`;
+      card.appendChild(nameEl);
+
+      // Description
+      if (hobby.description) {
+        const descriptionEl = document.createElement('p');
+        descriptionEl.className = 'mb-3';
+        descriptionEl.innerHTML = `<strong>Description:</strong> ${hobby.description}`;
+        card.appendChild(descriptionEl);
+      }
+
+      // Beginner Tips
+      if (hobby.beginnerTips) {
+        const tipsEl = document.createElement('p');
+        tipsEl.className = 'mb-3';
+        tipsEl.innerHTML = `<strong>✨ Beginner Tips:</strong> ${hobby.beginnerTips}`;
+        card.appendChild(tipsEl);
+      }
+
+      // Supplies Needed
+      if (hobby.suppliesNeeded) {
+        const suppliesEl = document.createElement('p');
+        suppliesEl.className = 'mb-3';
+        suppliesEl.innerHTML = `<strong>🛠️ Supplies Needed:</strong> ${hobby.suppliesNeeded}`;
+        card.appendChild(suppliesEl);
+      }
+
+      // Resources
+      if (hobby.resources && hobby.resources.length > 0) {
+        const resourcesTitle = document.createElement('h3');
+        resourcesTitle.className = 'font-semibold mb-1';
+        resourcesTitle.textContent = '📚 Resources:';
+        card.appendChild(resourcesTitle);
+
+        const resourcesList = document.createElement('ul');
+        resourcesList.className = 'list-disc list-inside mb-3';
+        hobby.resources.forEach(resource => {
+          const listItem = document.createElement('li');
+          const link = document.createElement('a');
+          link.href = resource.url;
+          link.textContent = resource.title;
+          link.target = '_blank';
+          link.className = 'text-blue-600 hover:underline';
+          listItem.appendChild(link);
+          resourcesList.appendChild(listItem);
+        });
+        card.appendChild(resourcesList);
+      }
+      
+      resultDiv.appendChild(card);
+
+      requestAnimationFrame(() => {
+        card.classList.add('card-enter-active');
+      });
+
+      const retry = document.createElement('button');
+      retry.className = 'mt-4 text-blue-600 hover:underline text-sm';
+      retry.textContent = '🤔 Don’t like this one? Try another hobby!';
+      retry.onclick = () => generateBtn.click();
+      resultDiv.appendChild(retry);
+    }
+
+    function updateSavedHobbiesView() {
+      const container = document.getElementById('savedHobbiesContainer');
+      container.innerHTML = '';      if (savedHobbies.length === 0) {
+        container.innerHTML = '<p class="text-center" style="color: var(--text-color)">No saved hobbies yet! Click the ☆ on a hobby to save it.</p>';
+        return;
+      }
+
+      savedHobbies.forEach(hobby => {
+        const card = document.createElement('div');
+        card.className = 'p-4 rounded-lg shadow-sm relative saved-hobby-card';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'bookmark-btn';
+        removeBtn.innerHTML = '⭐';
+        removeBtn.onclick = () => {
+          unsaveHobby(hobby);
+          updateSavedHobbiesView();
+        };
+        card.appendChild(removeBtn);
+
+        const nameEl = document.createElement('h3');
+        nameEl.className = 'text-lg font-semibold mb-2';
+        nameEl.textContent = `${hobby.emoji ? hobby.emoji + ' ' : ''}${hobby.name}`;
+        card.appendChild(nameEl);        const descriptionEl = document.createElement('p');
+        descriptionEl.className = 'text-sm';
+        descriptionEl.style.color = 'var(--text-color)';
+        descriptionEl.style.opacity = '0.8';
+        descriptionEl.textContent = hobby.description;
+        card.appendChild(descriptionEl);
+
+        const viewDetailsBtn = document.createElement('button');
+        viewDetailsBtn.className = 'text-blue-600 hover:underline text-sm mt-2';
+        viewDetailsBtn.textContent = 'View Details';
+        viewDetailsBtn.onclick = () => showResult(hobby);
+        card.appendChild(viewDetailsBtn);
+
+        container.appendChild(card);
+      });
+    }
+
+    // Toggle saved hobbies view
+    const toggleSavedBtn = document.getElementById('toggleSavedBtn');
+    const savedHobbiesDiv = document.getElementById('savedHobbies');
+
+    toggleSavedBtn.addEventListener('click', () => {
+      savedHobbiesDiv.classList.toggle('show');
+      updateSavedHobbiesView();
+    });
+
+    // Dark mode functionality
+    function initTheme() {
+        const theme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        document.getElementById('themeToggle').textContent = theme === 'dark' ? '☀️' : '🌙';
+    }
+
+    function toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        document.getElementById('themeToggle').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+    }
+
+    document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+    initTheme();
+
+    // Challenge-related constants and variables
+    const CHALLENGE_KEY = 'hobbyChallenge';
+    const STREAK_KEY = 'challengeStreak';
+    const LAST_COMPLETED_KEY = 'lastCompleted';
+    let currentChallenge = null;
+    let userStreak = parseInt(localStorage.getItem(STREAK_KEY) || '0');
+    let lastCompleted = localStorage.getItem(LAST_COMPLETED_KEY) || '';
+
+    function generateChallenge() {
+      const hobby = hobbies[Math.floor(Math.random() * hobbies.length)];
+      const challenges = [
+        `Try ${hobby.name} for 15 minutes today`,
+        `Learn one basic ${hobby.name} technique`,
+        `Watch a beginner tutorial about ${hobby.name}`,
+        `Gather supplies for starting ${hobby.name}`,
+        `Read about ${hobby.name} basics for 10 minutes`,
+        `Practice a simple ${hobby.name} exercise`,
+        `Connect with someone who enjoys ${hobby.name}`
+      ];
+      
+      return {
+        hobby: hobby,
+        task: challenges[Math.floor(Math.random() * challenges.length)],
+        date: new Date().toISOString().split('T')[0]
+      };
+    }
+
+    function updateChallenge() {
+      const today = new Date().toISOString().split('T')[0];
+      let challenge = JSON.parse(localStorage.getItem(CHALLENGE_KEY));
+      
+      // Generate new challenge if none exists or if it's a new day
+      if (!challenge || challenge.date !== today) {
+        challenge = generateChallenge();
+        localStorage.setItem(CHALLENGE_KEY, JSON.stringify(challenge));
+      }
+      
+      currentChallenge = challenge;
+      displayChallenge(challenge);
+    }
+
+    function displayChallenge(challenge) {
+      const challengeDiv = document.getElementById('dailyChallenge');
+      const today = new Date().toISOString().split('T')[0];
+      
+      challengeDiv.innerHTML = `
+        <div class="flex justify-between items-start mb-3">
+          <span class="challenge-badge">Daily Challenge</span>
+          <div class="streak-counter">
+            <span class="streak-flame">🔥</span>
+            <span>${userStreak} day streak</span>
+          </div>
+        </div>
+        <h3 class="text-xl font-semibold mb-2">${challenge.hobby.emoji} ${challenge.hobby.name}</h3>
+        <p class="mb-3" style="color: var(--text-color)">${challenge.task}</p>
+        <div class="flex justify-between items-center">
+          <button onclick="completeChallenge()" 
+                  class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition"
+                  ${lastCompleted === today ? 'disabled style="opacity: 0.5;"' : ''}>
+            ${lastCompleted === today ? '✅ Completed' : 'Complete Challenge'}
+          </button>
+          <button onclick="updateChallenge()" class="text-indigo-600 hover:underline">
+            Skip
+          </button>
+        </div>
+      `;
+    }
+
+    function completeChallenge() {
+      const today = new Date().toISOString().split('T')[0];
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      
+      if (lastCompleted === yesterday) {
+        userStreak++;
+      } else if (lastCompleted !== today) {
+        userStreak = 1;
+      }
+      
+      lastCompleted = today;
+      localStorage.setItem(STREAK_KEY, userStreak.toString());
+      localStorage.setItem(LAST_COMPLETED_KEY, lastCompleted);
+      
+      displayChallenge(currentChallenge);
+      
+      // Show celebration animation
+      const celebration = document.createElement('div');
+      celebration.style.position = 'fixed';
+      celebration.style.top = '50%';
+      celebration.style.left = '50%';
+      celebration.style.transform = 'translate(-50%, -50%)';
+      celebration.style.fontSize = '5rem';
+      celebration.style.animation = 'celebrate 1s forwards';
+      celebration.textContent = '🎉';
+      document.body.appendChild(celebration);
+      
+      setTimeout(() => celebration.remove(), 1000);
+    }
+
+    // Add celebration animation
+    const style = document.createElement('style');
+    style.textContent = `
+     
+      @keyframes celebrate {
+        0% { transform: translate(-50%, -50%) scale(0); }
+        50% { transform: translate(-50%, -50%) scale(1.5); }
+        100% { transform: translate(-50%, -50%) scale(0); }
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Update challenge on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      // ...existing DOMContentLoaded code...
+      updateChallenge();
+    });
+
+    // Initialize with a random hobby
+    document.addEventListener('DOMContentLoaded', () => {
+        const hobby = hobbies[Math.floor(Math.random() * hobbies.length)];
+        showResult(hobby);
+        updateSavedHobbiesView();
+        initTheme();
+    });
+  </script>
+</body>
+</html>
